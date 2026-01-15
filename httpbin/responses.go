@@ -42,6 +42,13 @@ type noBodyResponse struct {
 	Gzipped  bool `json:"gzipped,omitempty"`
 }
 
+// A response for incoming request where body data is discarded, like `/upload`
+// (POST, PUT, PATCH).
+type discardedBodyResponse struct {
+	noBodyResponse
+	BytesReceived int64 `json:"bytes_received"`
+}
+
 // A generic response for any incoming request that might contain a body (POST,
 // PUT, PATCH, etc).
 type bodyResponse struct {

@@ -471,6 +471,14 @@ func TestPatch(t *testing.T) {
 	testRequestWithBody(t, "PATCH", "/patch")
 }
 
+func TestUpload(t *testing.T) {
+	t.Run("BinaryBodyDiscard", func(t *testing.T) {
+		testRequestWithBodyBinaryBodyDiscarded(t, "POST", "/upload")
+		testRequestWithBodyBinaryBodyDiscarded(t, "PUT", "/upload")
+		testRequestWithBodyBinaryBodyDiscarded(t, "PATCH", "/upload")
+	})
+}
+
 func TestAnything(t *testing.T) {
 	var (
 		verbs = []string{
@@ -582,6 +590,34 @@ func testRequestWithBodyBinaryBody(t *testing.T, verb string, path string) {
 
 			expected := "data:" + test.contentType + ";base64," + base64.StdEncoding.EncodeToString([]byte(test.requestBody))
 			assert.Equal(t, result.Data, expected, "expected binary encoded response data")
+		})
+	}
+}
+
+func testRequestWithBodyBinaryBodyDiscarded(t *testing.T, verb string, path string) {
+	tests := []struct {
+		contentType string
+		requestBody string
+	}{
+		{"application/octet-stream", "encodeMe"},
+		{"image/png", "encodeMe-png"},
+		{"image/webp", "encodeMe-webp"},
+		{"image/jpeg", "encodeMe-jpeg"},
+		{"unknown", "encodeMe-unknown"},
+	}
+	for _, test := range tests {
+		t.Run("content type/"+test.contentType, func(t *testing.T) {
+			t.Parallel()
+
+			req := newTestRequestWithBody(t, verb, path, bytes.NewReader([]byte(test.requestBody)))
+			req.Header.Set("Content-Type", test.contentType)
+
+			resp := must.DoReq(t, client, req)
+			defer consumeAndCloseBody(resp)
+
+			result := mustParseResponse[discardedBodyResponse](t, resp)
+			assert.Equal(t, result.Method, verb, "method mismatch")
+			assert.DeepEqual(t, result.BytesReceived, int64(len(test.requestBody)), "BytesReceived should match requestedBody size")
 		})
 	}
 }
